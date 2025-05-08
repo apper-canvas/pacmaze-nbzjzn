@@ -103,7 +103,7 @@ const MainFeature = ({ updateHighScore }) => {
     const handleKeyDown = (e) => {
       if (!gameStarted || gamePaused || gameOver) return;
       
-      switch (e.key) {
+      switch (e.key.toLowerCase()) {
         case "ArrowUp":
           setNextDirection(UP);
           break;
@@ -114,6 +114,18 @@ const MainFeature = ({ updateHighScore }) => {
           setNextDirection(LEFT);
           break;
         case "ArrowRight":
+          setNextDirection(RIGHT);
+          break;
+        case "w":
+          setNextDirection(UP);
+          break;
+        case "s":
+          setNextDirection(DOWN);
+          break;
+        case "a":
+          setNextDirection(LEFT);
+          break;
+        case "d":
           setNextDirection(RIGHT);
           break;
         default:
@@ -247,7 +259,9 @@ const MainFeature = ({ updateHighScore }) => {
     
     newGhosts.forEach(ghost => {
       // Define possible directions
-      const directions = [UP, DOWN, LEFT, RIGHT];
+      // Add the current direction first to prioritize forward movement
+      const directions = [ghost.direction, UP, DOWN, LEFT, RIGHT].filter((dir, index, self) => 
+        self.findIndex(d => d.x === dir.x && d.y === dir.y) === index);
       
       // Get current direction
       const currentDirection = ghost.direction;
@@ -277,7 +291,15 @@ const MainFeature = ({ updateHighScore }) => {
       // If no valid directions, keep the current direction
       if (validDirections.length === 0) {
         return;
-      }
+      } else if (validDirections.length === 1) {
+        // If there's only one valid direction, take it without additional logic
+        ghost.direction = validDirections[0];
+        ghost.position = {
+          x: ghost.position.x + ghost.direction.x,
+          y: ghost.position.y + ghost.direction.y
+        };
+        return;
+      } 
       
       let newDirection;
       
@@ -298,7 +320,8 @@ const MainFeature = ({ updateHighScore }) => {
         
         // Add some randomness
         const randomIndex = Math.floor(Math.random() * Math.min(2, directionDistances.length));
-        newDirection = directionDistances[randomIndex].dir;
+        // Use optional chaining to prevent errors with empty arrays
+        newDirection = directionDistances[randomIndex]?.dir || validDirections[0];
       }
       // Normal mode: chase player
       else {
@@ -318,7 +341,8 @@ const MainFeature = ({ updateHighScore }) => {
         // Add some randomness
         const randomFactor = Math.random();
         const randomIndex = randomFactor < 0.7 ? 0 : Math.floor(randomFactor * validDirections.length);
-        newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)].dir;
+        // Use optional chaining to prevent errors with empty arrays
+        newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || validDirections[0];
       }
       
       // Update ghost direction and position
@@ -801,7 +825,7 @@ const MainFeature = ({ updateHighScore }) => {
             <h3 className="text-lg font-semibold mb-2">Controls</h3>
             <div className="text-sm space-y-2 text-surface-300">
               <p>Use arrow keys to navigate the maze</p>
-              <p>Collect all dots to complete the level</p>
+              <p>Use arrow keys or WASD to navigate the maze</p>
               <p>Avoid ghosts or collect power pellets to eat them</p>
             </div>
           </div>
