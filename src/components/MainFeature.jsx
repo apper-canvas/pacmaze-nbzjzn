@@ -51,10 +51,14 @@ const MainFeature = ({ updateHighScore }) => {
   const [playerDirection, setPlayerDirection] = useState(RIGHT);
   const [nextDirection, setNextDirection] = useState(null);
   const [ghosts, setGhosts] = useState([
-    { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-    { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF" },
-    { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
-    { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
+    { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+      previousPositions: [], stuckCounter: 0 },
+    { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
+      previousPositions: [], stuckCounter: 0 },
+    { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
+      previousPositions: [], stuckCounter: 0 },
+    { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
+      previousPositions: [], stuckCounter: 0 }
   ]);
   const [maze, setMaze] = useState(() => DEFAULT_MAZE.map(row => [...row]));
   const [powerMode, setPowerMode] = useState(false);
@@ -258,7 +262,22 @@ const MainFeature = ({ updateHighScore }) => {
     const newGhosts = [...ghosts];
     
     newGhosts.forEach(ghost => {
-      // Define possible directions
+      // Update previous positions to track movement history
+      const prevPositions = [...(ghost.previousPositions || [])];
+      prevPositions.push({...ghost.position});
+      
+      // Keep only the last 6 positions to limit memory usage
+      if (prevPositions.length > 6) {
+        prevPositions.shift();
+      }
+      ghost.previousPositions = prevPositions;
+      
+      // Check if ghost is stuck in a loop
+      const isStuck = detectStuckPattern(ghost.previousPositions);
+      if (isStuck) {
+        ghost.stuckCounter += 1;
+      }
+      
       // Add the current direction first to prioritize forward movement
       const directions = [ghost.direction, UP, DOWN, LEFT, RIGHT].filter((dir, index, self) => 
         self.findIndex(d => d.x === dir.x && d.y === dir.y) === index);
@@ -275,10 +294,9 @@ const MainFeature = ({ updateHighScore }) => {
       const possibleDirections = directions.filter(dir => 
         !(dir.x === oppositeDirection.x && dir.y === oppositeDirection.y)
       );
-      
-      // For power mode, make ghosts more likely to move away from Pac-Man
+
+      // Get all valid directions (not walls)
       const validDirections = [];
-      
       for (const dir of possibleDirections) {
         const nextX = ghost.position.x + dir.x;
         const nextY = ghost.position.y + dir.y;
@@ -288,60 +306,89 @@ const MainFeature = ({ updateHighScore }) => {
         }
       }
       
-      // If no valid directions, keep the current direction
+      // If there are no valid directions, keep current position
       if (validDirections.length === 0) {
         return;
-      } else if (validDirections.length === 1) {
-        // If there's only one valid direction, take it without additional logic
-        ghost.direction = validDirections[0];
-        ghost.position = {
-          x: ghost.position.x + ghost.direction.x,
-          y: ghost.position.y + ghost.direction.y
-        };
-        return;
-      } 
+      }
       
+      // Special case: If ghost is stuck, try to break the pattern with more randomness
       let newDirection;
       
-      // In power mode, try to move away from Pac-Man
-      if (powerMode) {
-        // Calculate distance to player for each direction
-        const directionDistances = validDirections.map(dir => {
-          const nextX = ghost.position.x + dir.x;
-          const nextY = ghost.position.y + dir.y;
+      if (ghost.stuckCounter > 2) {
+        // More aggressive escape strategy when stuck for too long
+        // Pick a random direction without considering Pac-Man's position
+        const randomIndex = Math.floor(Math.random() * validDirections.length);
+        newDirection = validDirections[randomIndex];
+        
+        // Reset stuck counter after making random move
+        if (Math.random() < 0.7) {
+          ghost.stuckCounter = 0;
+        }
+      } else {
+        // Filter out directions that would lead back to recent positions (avoid loops)
+        let betterDirections = validDirections;
+        
+        // If we have enough history and there are multiple options
+        if (prevPositions.length >= 2 && validDirections.length > 1) {
+          betterDirections = validDirections.filter(dir => {
+            const nextX = ghost.position.x + dir.x;
+            const nextY = ghost.position.y + dir.y;
+            
+            // Check if this position was recently visited
+            const wasRecentlyVisited = prevPositions.slice(-2).some(pos => 
+              pos.x === nextX && pos.y === nextY
+            );
+            
+            // If there's only one valid direction, we must take it even if recently visited
+            return !wasRecentlyVisited || validDirections.length === 1;
+          });
           
-          // Manhattan distance to player
-          const distance = Math.abs(nextX - playerPosition.x) + Math.abs(nextY - playerPosition.y);
-          return { dir, distance };
-        });
+          // If filtering left us with no options, fall back to all valid directions
+          if (betterDirections.length === 0) {
+            betterDirections = validDirections;
+          }
+        }
         
-        // Sort by distance (descending in power mode to move away)
-        directionDistances.sort((a, b) => b.distance - a.distance);
-        
-        // Add some randomness
-        const randomIndex = Math.floor(Math.random() * Math.min(2, directionDistances.length));
-        // Use optional chaining to prevent errors with empty arrays
-        newDirection = directionDistances[randomIndex]?.dir || validDirections[0];
-      }
-      // Normal mode: chase player
-      else {
-        // Calculate distance to player for each direction
-        const directionDistances = validDirections.map(dir => {
-          const nextX = ghost.position.x + dir.x;
+        // Standard ghost behavior based on game mode
+        if (powerMode) {
+          // In power mode, try to move away from Pac-Man
+          const directionDistances = betterDirections.map(dir => {
+            const nextX = ghost.position.x + dir.x;
+            const nextY = ghost.position.y + dir.y;
+            
+            // Manhattan distance to player
+            const distance = Math.abs(nextX - playerPosition.x) + Math.abs(nextY - playerPosition.y);
+            return { dir, distance };
+          });
+          // Sort by distance (descending in power mode to move away)
+          directionDistances.sort((a, b) => b.distance - a.distance);
           const nextY = ghost.position.y + dir.y;
+          // Add some randomness
+          const randomIndex = Math.floor(Math.random() * Math.min(2, directionDistances.length));
+          newDirection = directionDistances[randomIndex]?.dir || betterDirections[0];
+        }
+        // Normal mode: chase player with improved logic
+        else {
+          // Calculate distance to player for each direction
+          const directionDistances = betterDirections.map(dir => {
+            const nextX = ghost.position.x + dir.x;
+            const nextY = ghost.position.y + dir.y;
+            
+            // Manhattan distance to player
+            const distance = Math.abs(nextX - playerPosition.x) + Math.abs(nextY - playerPosition.y);
+            return { dir, distance };
+          });
           
-          // Manhattan distance to player
-          const distance = Math.abs(nextX - playerPosition.x) + Math.abs(nextY - playerPosition.y);
-          return { dir, distance };
-        });
-        
-        // Sort by distance (ascending in normal mode to chase)
-        directionDistances.sort((a, b) => a.distance - b.distance);
-        
-        // Add some randomness
-        const randomFactor = Math.random();
-        const randomIndex = randomFactor < 0.7 ? 0 : Math.floor(randomFactor * validDirections.length);
-        // Use optional chaining to prevent errors with empty arrays
+          // Sort by distance (ascending in normal mode to chase)
+          directionDistances.sort((a, b) => a.distance - b.distance);
+          
+          // Add more randomness to prevent getting stuck
+          // Increase randomness when we detect potential loops
+          const randomThreshold = isStuck ? 0.5 : 0.7;
+          const randomFactor = Math.random();
+          const randomIndex = randomFactor < randomThreshold ? 0 : Math.floor(randomFactor * betterDirections.length);
+          newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || betterDirections[0];
+        }
         newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || validDirections[0];
       }
       
@@ -353,7 +400,30 @@ const MainFeature = ({ updateHighScore }) => {
       };
     });
     
-    setGhosts(newGhosts);
+  }, [ghosts, maze, playerPosition, powerMode]);
+  
+  // Helper function to detect if a ghost is stuck in a pattern
+  const detectStuckPattern = (positions) => {
+    if (!positions || positions.length < 4) return false;
+    
+    // Check for back-and-forth pattern (A -> B -> A -> B)
+    const recent = positions.slice(-4);
+    if (recent.length === 4) {
+      if ((recent[0].x === recent[2].x && recent[0].y === recent[2].y) &&
+          (recent[1].x === recent[3].x && recent[1].y === recent[3].y)) {
+        return true;
+      }
+    }
+    
+    // Check for small circular pattern
+    const last3 = positions.slice(-3);
+    const uniquePositions = new Set();
+    for (const pos of last3) {
+      uniquePositions.add(`${pos.x},${pos.y}`);
+    }
+    // If they're revisiting the same 1-2 positions, they're likely stuck
+    return uniquePositions.size <= 2;
+  };
   }, [ghosts, maze, playerPosition, powerMode]);
   
   const checkCollisions = useCallback(() => {
@@ -392,10 +462,14 @@ const MainFeature = ({ updateHighScore }) => {
           
           // Reset ghosts
           setGhosts([
-            { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-            { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF" },
-            { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
-            { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
+            { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+              previousPositions: [], stuckCounter: 0 },
+            { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
+              previousPositions: [], stuckCounter: 0 },
+            { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
+              previousPositions: [], stuckCounter: 0 },
+            { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
+              previousPositions: [], stuckCounter: 0 }
           ]);
           
           toast.error("You lost a life!", { icon: "💔" });
@@ -433,10 +507,14 @@ const MainFeature = ({ updateHighScore }) => {
       // Reset ghosts
       setGhosts([
         { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-        { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF" },
-        { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
-        { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
-      ]);
+        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
+          previousPositions: [], stuckCounter: 0 }
       
       // Pause briefly
       setGamePaused(true);
@@ -662,10 +740,14 @@ const MainFeature = ({ updateHighScore }) => {
       setNextDirection(null);
       setGhosts([
         { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-        { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF" },
-        { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
-        { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
-      ]);
+        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
+          previousPositions: [], stuckCounter: 0 },
+        { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
+          previousPositions: [], stuckCounter: 0 }
       setScore(0);
       setLives(3);
       setLevel(1);
@@ -704,10 +786,14 @@ const MainFeature = ({ updateHighScore }) => {
     setPlayerDirection(RIGHT);
     setNextDirection(null);
     setGhosts([
-      { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-      { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF" },
-      { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
-      { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
+      { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+        previousPositions: [], stuckCounter: 0 },
+      { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
+        previousPositions: [], stuckCounter: 0 },
+      { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
+        previousPositions: [], stuckCounter: 0 },
+      { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
+        previousPositions: [], stuckCounter: 0 }
     ]);
     setScore(0);
     setLives(3);
@@ -825,7 +911,6 @@ const MainFeature = ({ updateHighScore }) => {
             <h3 className="text-lg font-semibold mb-2">Controls</h3>
             <div className="text-sm space-y-2 text-surface-300">
               <p>Use arrow keys to navigate the maze</p>
-              <p>Use arrow keys or WASD to navigate the maze</p>
               <p>Avoid ghosts or collect power pellets to eat them</p>
             </div>
           </div>
