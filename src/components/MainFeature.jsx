@@ -362,9 +362,8 @@ const MainFeature = ({ updateHighScore }) => {
           });
           // Sort by distance (descending in power mode to move away)
           directionDistances.sort((a, b) => b.distance - a.distance);
-          const nextY = ghost.position.y + dir.y;
           // Add some randomness
-          const randomIndex = Math.floor(Math.random() * Math.min(2, directionDistances.length));
+          const randomIndex = Math.floor(Math.random() * Math.min(2, directionDistances.length)); 
           newDirection = directionDistances[randomIndex]?.dir || betterDirections[0];
         }
         // Normal mode: chase player with improved logic
@@ -389,7 +388,6 @@ const MainFeature = ({ updateHighScore }) => {
           const randomIndex = randomFactor < randomThreshold ? 0 : Math.floor(randomFactor * betterDirections.length);
           newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || betterDirections[0];
         }
-        newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || validDirections[0];
       }
       
       // Update ghost direction and position
@@ -504,8 +502,6 @@ const MainFeature = ({ updateHighScore }) => {
       
       // Reset ghosts
       setGhosts([
-        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
           previousPositions: [], stuckCounter: 0 },
         { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
           previousPositions: [], stuckCounter: 0 },
