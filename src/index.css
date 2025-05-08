@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'react-toastify/dist/ReactToastify.css';
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-surface-900 text-white min-h-screen antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-900 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-surface-900 hover:bg-primary-dark focus:ring-primary;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary-dark focus:ring-secondary;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-primary text-primary hover:bg-primary hover:text-surface-900 focus:ring-primary;
+  }
+  
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-red-700 focus:ring-danger;
+  }
+  
+  .arcade-text {
+    @apply font-game tracking-wider;
+  }
+  
+  .game-card {
+    @apply bg-surface-800 rounded-xl border border-surface-700 shadow-neu-dark p-4;
+  }
+  
+  .nav-link {
+    @apply px-3 py-2 rounded-lg transition-colors hover:bg-surface-800 hover:text-primary;
+  }
+  
+  .nav-link.active {
+    @apply bg-surface-800 text-primary;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 8px rgba(255, 204, 0, 0.7);
+  }
+  
+  .pixelated {
+    image-rendering: pixelated;
+  }
+}
