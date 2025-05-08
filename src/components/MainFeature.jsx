@@ -450,7 +450,7 @@ const MainFeature = ({ updateHighScore }) => {
     // If they're revisiting the same 1-2 positions, they're likely stuck
     if (uniquePositions.size <= 2) console.log("Detected position revisiting pattern");
     return uniquePositions.size <= 2;
-  }, []);
+  };
   
   const checkCollisions = useCallback(() => {
     // Check collision with ghosts
