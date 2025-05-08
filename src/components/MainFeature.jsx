@@ -747,7 +747,7 @@ const MainFeature = ({ updateHighScore }) => {
           previousPositions: [], stuckCounter: 0 },
         { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
           previousPositions: [], stuckCounter: 0 }
-      setScore(0);
+          previousPositions: [], stuckCounter: 0 }]);
       setLives(3);
       setLevel(1);
       setPowerMode(false);
