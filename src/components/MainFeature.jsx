@@ -424,6 +424,7 @@ const MainFeature = ({ updateHighScore }) => {
     // If they're revisiting the same 1-2 positions, they're likely stuck
     return uniquePositions.size <= 2;
   };
+  
   }, [ghosts, maze, playerPosition, powerMode]);
   
   const checkCollisions = useCallback(() => {
@@ -515,7 +516,8 @@ const MainFeature = ({ updateHighScore }) => {
           previousPositions: [], stuckCounter: 0 },
         { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
           previousPositions: [], stuckCounter: 0 }
-      
+      ]);
+
       // Pause briefly
       setGamePaused(true);
       setTimeout(() => {
