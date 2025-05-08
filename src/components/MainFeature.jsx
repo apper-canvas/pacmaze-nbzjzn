@@ -25,8 +25,8 @@ const DEFAULT_MAZE = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1],
   [1, 3, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 3, 1],
-  [1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1],
-  [1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1],
+  [1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1], 
+  [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1], 
   [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
   [1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 2, 1, 1, 2, 1],
   [1, 2, 2, 1, 2, 1, 2, 0, 2, 1, 2, 1, 2, 2, 1],
@@ -47,7 +47,7 @@ const MainFeature = ({ updateHighScore }) => {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [level, setLevel] = useState(1);
-  const [playerPosition, setPlayerPosition] = useState({ x: 7, y: 10 });
+  const [playerPosition, setPlayerPosition] = useState({ x: 7, y: 7 });
   const [playerDirection, setPlayerDirection] = useState(RIGHT);
   const [nextDirection, setNextDirection] = useState(null);
   const [ghosts, setGhosts] = useState([
@@ -56,7 +56,7 @@ const MainFeature = ({ updateHighScore }) => {
     { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF" },
     { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852" }
   ]);
-  const [maze, setMaze] = useState([...DEFAULT_MAZE.map(row => [...row])]);
+  const [maze, setMaze] = useState(() => DEFAULT_MAZE.map(row => [...row]));
   const [powerMode, setPowerMode] = useState(false);
   const [difficultyLevel, setDifficultyLevel] = useState('medium');
   const [countDown, setCountDown] = useState(3);
@@ -80,7 +80,7 @@ const MainFeature = ({ updateHighScore }) => {
     let count = 0;
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
-        if (maze[y][x] === DOT || maze[y][x] === POWER_PELLET) {
+        if (maze[y][x] === DOT || maze[y][x] === POWER_PELLET) { 
           count++;
         }
       }
@@ -194,9 +194,13 @@ const MainFeature = ({ updateHighScore }) => {
   const movePlayer = useCallback(() => {
     // Try to change direction if a new direction is requested
     if (nextDirection) {
-      const nextX = playerPosition.x + nextDirection.x;
-      const nextY = playerPosition.y + nextDirection.y;
+      // Calculate the next position based on the requested direction
+      const nextPositionX = playerPosition.x + nextDirection.x;
+      const nextPositionY = playerPosition.y + nextDirection.y;
       
+      // Ensure next position is within bounds
+      const nextX = Math.max(0, Math.min(GRID_WIDTH - 1, nextPositionX));
+      const nextY = Math.max(0, Math.min(GRID_HEIGHT - 1, nextPositionY));
       if (nextX >= 0 && nextX < GRID_WIDTH && nextY >= 0 && nextY < GRID_HEIGHT && maze[nextY][nextX] !== WALL) {
         setPlayerDirection(nextDirection);
         setNextDirection(null);
@@ -204,13 +208,18 @@ const MainFeature = ({ updateHighScore }) => {
     }
     
     // Move in the current direction
-    const nextX = playerPosition.x + playerDirection.x;
-    const nextY = playerPosition.y + playerDirection.y;
+    const nextPositionX = playerPosition.x + playerDirection.x;
+    const nextPositionY = playerPosition.y + playerDirection.y;
+    
+    // Ensure next position is within bounds
+    const nextX = Math.max(0, Math.min(GRID_WIDTH - 1, nextPositionX));
+    const nextY = Math.max(0, Math.min(GRID_HEIGHT - 1, nextPositionY));
     
     // Check if movement is valid
-    if (nextX >= 0 && nextX < GRID_WIDTH && nextY >= 0 && nextY < GRID_HEIGHT && maze[nextY][nextX] !== WALL) {
-      // Check if the player is collecting a dot
-      if (maze[nextY][nextX] === DOT) {
+    if (maze[nextY][nextX] === WALL) {
+      // Hit a wall, don't move
+    } else {
+      if (maze[nextY][nextX] === DOT) { // Collecting a dot
         const newMaze = [...maze];
         newMaze[nextY][nextX] = EMPTY;
         setMaze(newMaze);
@@ -218,7 +227,7 @@ const MainFeature = ({ updateHighScore }) => {
         setDotsRemaining(prev => prev - 1);
       } 
       // Check if the player is collecting a power pellet
-      else if (maze[nextY][nextX] === POWER_PELLET) {
+      else if (maze[nextY][nextX] === POWER_PELLET) { 
         const newMaze = [...maze];
         newMaze[nextY][nextX] = EMPTY;
         setMaze(newMaze);
@@ -353,7 +362,7 @@ const MainFeature = ({ updateHighScore }) => {
         
         if (lives > 1) {
           // Reset positions
-          setPlayerPosition({ x: 7, y: 10 });
+          setPlayerPosition({ x: 7, y: 7 });
           setPlayerDirection(RIGHT);
           setNextDirection(null);
           
@@ -390,7 +399,7 @@ const MainFeature = ({ updateHighScore }) => {
       setLevel(prevLevel => prevLevel + 1);
       
       // Reset positions but keep score
-      setPlayerPosition({ x: 7, y: 10 });
+      setPlayerPosition({ x: 7, y: 7 });
       setPlayerDirection(RIGHT);
       setNextDirection(null);
       
@@ -624,7 +633,7 @@ const MainFeature = ({ updateHighScore }) => {
     if (gameOver) {
       // Reset game state
       setMaze([...DEFAULT_MAZE.map(row => [...row])]);
-      setPlayerPosition({ x: 7, y: 10 });
+      setPlayerPosition({ x: 7, y: 7 });
       setPlayerDirection(RIGHT);
       setNextDirection(null);
       setGhosts([
@@ -667,7 +676,7 @@ const MainFeature = ({ updateHighScore }) => {
   const resetGame = () => {
     // Reset game state
     setMaze([...DEFAULT_MAZE.map(row => [...row])]);
-    setPlayerPosition({ x: 7, y: 10 });
+    setPlayerPosition({ x: 7, y: 7 });
     setPlayerDirection(RIGHT);
     setNextDirection(null);
     setGhosts([
