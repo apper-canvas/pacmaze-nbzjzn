@@ -403,7 +403,6 @@ const MainFeature = ({ updateHighScore }) => {
   }, [ghosts, maze, playerPosition, powerMode]);
   
   // Helper function to detect if a ghost is stuck in a pattern
-  const detectStuckPattern = (positions) => {
   const detectStuckPattern = useCallback((positions) => {
     
     // Check for back-and-forth pattern (A -> B -> A -> B)
@@ -423,8 +422,8 @@ const MainFeature = ({ updateHighScore }) => {
     }
     // If they're revisiting the same 1-2 positions, they're likely stuck
     return uniquePositions.size <= 2;
-  };
   }, []);
+  
   const checkCollisions = useCallback(() => {
     // Check collision with ghosts
     const collidedGhost = ghosts.find(ghost => 
