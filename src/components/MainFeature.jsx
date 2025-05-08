@@ -739,14 +739,13 @@ const MainFeature = ({ updateHighScore }) => {
       setNextDirection(null);
       setGhosts([
         { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000" },
-        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
+          previousPositions: [], stuckCounter: 0 },
           previousPositions: [], stuckCounter: 0 },
         { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
           previousPositions: [], stuckCounter: 0 },
         { id: 3, position: { x: 1, y: 13 }, direction: UP, color: "#FFB8FF", 
           previousPositions: [], stuckCounter: 0 },
-        { id: 4, position: { x: 13, y: 13 }, direction: DOWN, color: "#FFB852", 
-          previousPositions: [], stuckCounter: 0 }
+          previousPositions: [], stuckCounter: 0 }]);
           previousPositions: [], stuckCounter: 0 }]);
       setLives(3);
       setLevel(1);
