@@ -80,17 +80,31 @@ const MainFeature = ({ updateHighScore }) => {
   const powerModeTimeRef = useRef(0);
   
   // Calculate the number of dots in the maze
-  useEffect(() => {
+  const countDotsInMaze = useCallback(() => {
     let count = 0;
     for (let y = 0; y < GRID_HEIGHT; y++) {
       for (let x = 0; x < GRID_WIDTH; x++) {
-        if (maze[y][x] === DOT || maze[y][x] === POWER_PELLET) { 
+        if (maze[y][x] === DOT || maze[y][x] === POWER_PELLET) {
           count++;
         }
       }
     }
+    return count;
+  }, [maze]);
+  
+  // Update dot count whenever maze changes
+  useEffect(() => {
+    const count = countDotsInMaze();
+    console.log(`Dots remaining: ${count}`);
     setDotsRemaining(count);
   }, [maze]);
+  
+  // Debug level completion
+  useEffect(() => {
+    if (dotsRemaining === 0 && gameStarted && !gamePaused && !gameOver) {
+      console.log("All dots eaten! Level should complete now.");
+    }
+  }, [dotsRemaining, gameStarted, gamePaused, gameOver]);
   
   // Initialize the game canvas
   useEffect(() => {
@@ -241,6 +255,7 @@ const MainFeature = ({ updateHighScore }) => {
         setMaze(newMaze);
         setScore(prevScore => prevScore + 10);
         setDotsRemaining(prev => prev - 1);
+        console.log(`Dot eaten! Dots remaining: ${dotsRemaining - 1}`);
       } 
       // Check if the player is collecting a power pellet
       else if (maze[nextY][nextX] === POWER_PELLET) { 
@@ -249,6 +264,7 @@ const MainFeature = ({ updateHighScore }) => {
         setMaze(newMaze);
         setScore(prevScore => prevScore + 50);
         setPowerMode(true);
+        console.log(`Power pellet eaten! Dots remaining: ${dotsRemaining - 1}`);
         setDotsRemaining(prev => prev - 1);
         toast.success("Power mode activated!", { icon: "💪" });
       }
@@ -269,7 +285,7 @@ const MainFeature = ({ updateHighScore }) => {
       // Keep only the last 6 positions to limit memory usage
       if (prevPositions.length > 6) {
         prevPositions.shift();
-      }
+      } 
       ghost.previousPositions = prevPositions;
       
       // Check if ghost is stuck in a loop
@@ -278,18 +294,22 @@ const MainFeature = ({ updateHighScore }) => {
         ghost.stuckCounter += 1;
       }
       
-      // Add the current direction first to prioritize forward movement
-      const directions = [ghost.direction, UP, DOWN, LEFT, RIGHT].filter((dir, index, self) => 
-        self.findIndex(d => d.x === dir.x && d.y === dir.y) === index);
-      
       // Get current direction
       const currentDirection = ghost.direction;
-      
+
       // Filter out the opposite direction (prevent turning back)
       const oppositeDirection = {
         x: -currentDirection.x,
         y: -currentDirection.y
       };
+
+      // If ghost is stuck, don't prioritize current direction to break out of loop
+      let directions;
+      if (ghost.stuckCounter >= 2) {
+        directions = [UP, DOWN, LEFT, RIGHT].sort(() => Math.random() - 0.5);
+      } else {
+        directions = [ghost.direction, UP, DOWN, LEFT, RIGHT];
+      }
       
       const possibleDirections = directions.filter(dir => 
         !(dir.x === oppositeDirection.x && dir.y === oppositeDirection.y)
@@ -314,12 +334,12 @@ const MainFeature = ({ updateHighScore }) => {
       // Special case: If ghost is stuck, try to break the pattern with more randomness
       let newDirection;
       
-      if (ghost.stuckCounter > 2) {
+      if (ghost.stuckCounter >= 3) {
         // More aggressive escape strategy when stuck for too long
         // Pick a random direction without considering Pac-Man's position
         const randomIndex = Math.floor(Math.random() * validDirections.length);
         newDirection = validDirections[randomIndex];
-        
+        console.log(`Ghost ${ghost.id} stuck for ${ghost.stuckCounter} moves, forcing random direction`);
         // Reset stuck counter after making random move
         if (Math.random() < 0.7) {
           ghost.stuckCounter = 0;
@@ -383,7 +403,7 @@ const MainFeature = ({ updateHighScore }) => {
           
           // Add more randomness to prevent getting stuck
           // Increase randomness when we detect potential loops
-          const randomThreshold = isStuck ? 0.5 : 0.7;
+          const randomThreshold = isStuck ? 0.4 : 0.7;
           const randomFactor = Math.random();
           const randomIndex = randomFactor < randomThreshold ? 0 : Math.floor(randomFactor * betterDirections.length);
           newDirection = directionDistances[Math.min(randomIndex, directionDistances.length - 1)]?.dir || betterDirections[0];
@@ -401,24 +421,34 @@ const MainFeature = ({ updateHighScore }) => {
   }, [ghosts, maze, playerPosition, powerMode]);
   
   // Helper function to detect if a ghost is stuck in a pattern
-  const detectStuckPattern = useCallback((positions) => {
+  const detectStuckPattern = (positions) => {
+    if (positions.length < 3) return false;
     
     // Check for back-and-forth pattern (A -> B -> A -> B)
     const recent = positions.slice(-4);
     if (recent.length === 4) {
       if ((recent[0].x === recent[2].x && recent[0].y === recent[2].y) &&
           (recent[1].x === recent[3].x && recent[1].y === recent[3].y)) {
+        console.log("Detected oscillating pattern");
         return true;
       }
     }
     
     // Check for small circular pattern
     const last3 = positions.slice(-3);
+    if (last3.length === 3) {
+      if ((last3[0].x === last3[2].x && last3[0].y === last3[2].y)) {
+        console.log("Detected 2-step repeat pattern");
+        return true;
+      }
+    }
+    
     const uniquePositions = new Set();
     for (const pos of last3) {
       uniquePositions.add(`${pos.x},${pos.y}`);
     }
     // If they're revisiting the same 1-2 positions, they're likely stuck
+    if (uniquePositions.size <= 2) console.log("Detected position revisiting pattern");
     return uniquePositions.size <= 2;
   }, []);
   
@@ -485,10 +515,14 @@ const MainFeature = ({ updateHighScore }) => {
   }, [ghosts, playerPosition, powerMode, lives]);
   
   const checkLevelComplete = useCallback(() => {
-    if (dotsRemaining === 0) {
+    console.log(`Checking level complete: ${dotsRemaining} dots remaining`);
+    
+    if (dotsRemaining <= 0 && gameStarted && !gamePaused && !gameOver) {
       // Level complete
       toast.success(`Level ${level} complete!`, { icon: "🎉" });
-      
+      console.log(`Level ${level} complete! Advancing to level ${level + 1}`);
+      // Recounting dots to verify
+      console.log(`Dots remaining verification: ${countDotsInMaze()}`);
       // Increase level and reset the game
       setLevel(prevLevel => prevLevel + 1);
       
@@ -499,7 +533,7 @@ const MainFeature = ({ updateHighScore }) => {
       
       // Reset maze with all dots
       setMaze([...DEFAULT_MAZE.map(row => [...row])]);
-      
+
       // Reset ghosts
       setGhosts([
         { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
@@ -515,10 +549,11 @@ const MainFeature = ({ updateHighScore }) => {
       // Pause briefly
       setGamePaused(true);
       setTimeout(() => {
+        console.log("Resuming after level completion");
         setGamePaused(false);
       }, 1500);
     }
-  }, [dotsRemaining, level]);
+  }, [dotsRemaining, level, gameStarted, gamePaused, gameOver, countDotsInMaze]);
   
   const drawGame = useCallback(() => {
     const canvas = canvasRef.current;
