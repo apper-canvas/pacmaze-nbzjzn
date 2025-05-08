@@ -502,6 +502,7 @@ const MainFeature = ({ updateHighScore }) => {
       
       // Reset ghosts
       setGhosts([
+        { id: 1, position: { x: 1, y: 1 }, direction: RIGHT, color: "#FF0000", 
           previousPositions: [], stuckCounter: 0 },
         { id: 2, position: { x: 13, y: 1 }, direction: LEFT, color: "#00FFFF", 
           previousPositions: [], stuckCounter: 0 },
